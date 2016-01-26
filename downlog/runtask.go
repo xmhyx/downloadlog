@@ -2,11 +2,11 @@ package downlog
 
 import (
     "fmt"
-    "time"
     "os"
-    "io"
+ //   "io"
     "strings"
     "sort"
+    "ftp"
 )
     
 func task_dispatch(task map[string]map[string]interface{},pool chan bool,result_chan chan string) {
@@ -24,27 +24,39 @@ func task_dispatch(task map[string]map[string]interface{},pool chan bool,result_
 }
 
 func worker(log string,logconfig map[string]interface{}, result_chan chan string){
-/*    
-    fmt.Printf("server: %s, user: %s, pass:%s \n",logconfig["hostname"].(string),
-                                                  logconfig["username"].(string),
-                                                  logconfig["password"].(string))
-*/
+
     arr:=strings.Split(log,",")
     filename:=arr[2]
     srcfile:=logconfig["path_remote"].(string)+"/"+filename
     dstfile:=logconfig["path_local"].(string)+"/~"+filename
     fmt.Printf("from: %s, to: %s\n",srcfile,dstfile)
-    time.Sleep(time.Second * 2)
-    result_chan <-log  
+	ftp:= new(ftp.FTP)                                                         
+    ftp.Debug = true
+    ftp.Connect(logconfig["hostname"].(string), int(logconfig["port"].(float64)))  
+    ftp.Login(logconfig["username"].(string), logconfig["password"].(string))
+	ftp.Request("TYPE I") 
+    err:=ftp.Retr(srcfile,dstfile) 
+	if err!=nil  {
+	  result_chan<-""
+	}else{
+      result_chan <-log  
+	}
 }
 
 func writedownloaded(filename, result string){
-    f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE, 0644)
-    if err != nil {
-       return 
+    f, err := os.OpenFile(filename ,os.O_APPEND|os.O_WRONLY, os.ModePerm)
+	if err != nil {
+	   fmt.Println("open downloaded file failed ",err)
+	   return
     }
-    io.WriteString(f, result+"\n") 
+    _,e:=f.WriteString( result+"\n")
+	if e != nil {
+	   fmt.Println("write downloaded file failed ",e)
+    }else{
+	   fmt.Println("write downloaded ok : ",result)
+	}
     f.Close()
+	
 }
 
 func Runtask(workpool int,downrec string,task map[string]map[string]interface{}) {
@@ -54,8 +66,9 @@ func Runtask(workpool int,downrec string,task map[string]map[string]interface{})
 
     var pool = make(chan bool, workpool)  
     var result_chan = make(chan string, workpool)
-    err:=os.Rename(downrec,"~"+downrec )
-    fmt.Println("main rename ",downrec," to ","~"+downrec,"err :",err) 
+	var downing="~"+downrec 
+    err:=os.Rename(downrec,downing )
+    fmt.Println("main rename ",downrec," to ",downing,"err :",err) 
     
     for i:=0;i<workpool;i++{
         pool<-true
@@ -65,14 +78,21 @@ func Runtask(workpool int,downrec string,task map[string]map[string]interface{})
 
     for i:=0;i<len(task);i++{
         r:=<-result_chan   
-        writedownloaded("~"+downrec, r)
-        arr:=strings.Split(r,",")
-        tmpfile:=arr[1]+"/~"+arr[2]
-        dstfile:=arr[1]+"/"+arr[2]
-        //err := os.Rename(tmpfile,dstfile )
-        fmt.Println(i," rename ",tmpfile," to ",dstfile) 
+		if r!=""{
+          writedownloaded(downing, r)
+          arr:=strings.Split(r,",")
+          tmpfile:=arr[1]+"/~"+arr[2]
+          dstfile:=arr[1]+"/"+arr[2]
+          os.Rename(tmpfile,dstfile )
+		  if strings.HasSuffix( dstfile ,".tar.gz") {
+            untargzfile(dstfile,arr[1])
+          }else if strings.HasSuffix( dstfile ,"gz") {
+            ungzfile(dstfile,arr[1])
+          }
+          //fmt.Println(i," rename ",tmpfile," to ",dstfile) 
+	      }
         pool<-true
     }
-    err=os.Rename("~"+downrec,downrec )
-    fmt.Println("main rename ","~"+downrec," to ",downrec,"err :",err) 
+    err=os.Rename(downing,downrec )
+    fmt.Println("main rename ",downing," to ",downrec,"err :",err) 
 }
