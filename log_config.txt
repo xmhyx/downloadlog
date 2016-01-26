@@ -1,0 +1,14 @@
+{
+"log_1":{
+             "hostname" : "192.168.27.26",    
+             "username" : "yuncdn",
+             "password" : "yUnCdn20151029",
+             "port" : 21,
+             "type":"datelog",
+             "path_remote":"/",
+             "path_local":"/home/flow/hyx/26cdn/",
+             "logname":"streaming-cdn.icartoons.cn_[Y][m][d]_7388_access.log.gz",
+             "isenabled":true
+        }
+  
+}
