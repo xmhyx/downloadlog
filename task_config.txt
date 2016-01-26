@@ -1,0 +1,4 @@
+{
+    "dayoffset":-2,
+    "concurrentpool":7
+}
