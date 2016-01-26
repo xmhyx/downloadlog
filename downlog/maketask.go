@@ -32,7 +32,8 @@ func Maketask()(workpool int,downrec string,allfile map[string]map[string]interf
     // y,m,d="2015","09","08"
     
     downrec = "downloaded_"+y+m+d+".txt"
-    if _, err := os.Stat("~"+downrec);err == nil || os.IsExist(err) {
+	downing:= "~"+downrec
+    if _, err := os.Stat(downing); err == nil || os.IsExist(err) {
        fmt.Println("download is runing ,record file:",downrec) 
        return 0,"",nil
     }
@@ -44,14 +45,11 @@ func Maketask()(workpool int,downrec string,allfile map[string]map[string]interf
     }else {
       dr,_= os.Create(downrec)
     }
-    defer dr.Close()
-
     filedata , err :=ioutil.ReadAll(dr) 
-
     if err!=nil{
         fmt.Println(err.Error())   
     }
-
+    dr.Close()
     downfiles:=strings.Split(string(filedata),"\n")
 
     for k,v :=range logfromconfig {
